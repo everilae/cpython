@@ -949,6 +949,15 @@ set_context(struct compiling *c, expr_ty e, expr_context_ty ctx, const node *n)
                 expr_name = "()";
             }
             break;
+        case Dict_kind:
+            if (asdl_seq_LEN(e->v.Dict.keys)) {
+                e->v.Dict.ctx = ctx;
+                s = e->v.Dict.values;
+            }
+            else {
+                expr_name = "{}";
+            }
+            break;
         case Lambda_kind:
             expr_name = "lambda";
             break;
@@ -979,7 +988,6 @@ set_context(struct compiling *c, expr_ty e, expr_context_ty ctx, const node *n)
         case DictComp_kind:
             expr_name = "dict comprehension";
             break;
-        case Dict_kind:
         case Set_kind:
         case Num_kind:
         case Str_kind:
@@ -1940,7 +1948,7 @@ ast_for_dictdisplay(struct compiling *c, const node *n)
     }
     keys->size = j;
     values->size = j;
-    return Dict(keys, values, LINENO(n), n->n_col_offset, c->c_arena);
+    return Dict(keys, values, Load, LINENO(n), n->n_col_offset, c->c_arena);
 }
 
 static expr_ty
@@ -2102,7 +2110,7 @@ ast_for_atom(struct compiling *c, const node *n)
         ch = CHILD(n, 1);
         if (TYPE(ch) == RBRACE) {
             /* It's an empty dict. */
-            return Dict(NULL, NULL, LINENO(n), n->n_col_offset, c->c_arena);
+            return Dict(NULL, NULL, Load, LINENO(n), n->n_col_offset, c->c_arena);
         }
         else {
             int is_dict = (TYPE(CHILD(ch, 0)) == DOUBLESTAR);

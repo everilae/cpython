@@ -197,13 +197,13 @@ struct _stmt {
 };
 
 enum _expr_kind {BoolOp_kind=1, BinOp_kind=2, UnaryOp_kind=3, Lambda_kind=4,
-                  IfExp_kind=5, Dict_kind=6, Set_kind=7, ListComp_kind=8,
-                  SetComp_kind=9, DictComp_kind=10, GeneratorExp_kind=11,
-                  Await_kind=12, Yield_kind=13, YieldFrom_kind=14,
-                  Compare_kind=15, Call_kind=16, Num_kind=17, Str_kind=18,
-                  Bytes_kind=19, NameConstant_kind=20, Ellipsis_kind=21,
-                  Attribute_kind=22, Subscript_kind=23, Starred_kind=24,
-                  Name_kind=25, List_kind=26, Tuple_kind=27};
+                  IfExp_kind=5, Set_kind=6, ListComp_kind=7, SetComp_kind=8,
+                  DictComp_kind=9, GeneratorExp_kind=10, Await_kind=11,
+                  Yield_kind=12, YieldFrom_kind=13, Compare_kind=14,
+                  Call_kind=15, Num_kind=16, Str_kind=17, Bytes_kind=18,
+                  NameConstant_kind=19, Ellipsis_kind=20, Attribute_kind=21,
+                  Subscript_kind=22, Starred_kind=23, Name_kind=24,
+                  List_kind=25, Tuple_kind=26, Dict_kind=27};
 struct _expr {
     enum _expr_kind kind;
     union {
@@ -233,11 +233,6 @@ struct _expr {
             expr_ty body;
             expr_ty orelse;
         } IfExp;
-        
-        struct {
-            asdl_seq *keys;
-            asdl_seq *values;
-        } Dict;
         
         struct {
             asdl_seq *elts;
@@ -335,6 +330,12 @@ struct _expr {
             asdl_seq *elts;
             expr_context_ty ctx;
         } Tuple;
+        
+        struct {
+            asdl_seq *keys;
+            asdl_seq *values;
+            expr_context_ty ctx;
+        } Dict;
         
     } v;
     int lineno;
@@ -509,9 +510,6 @@ expr_ty _Py_Lambda(arguments_ty args, expr_ty body, int lineno, int col_offset,
 #define IfExp(a0, a1, a2, a3, a4, a5) _Py_IfExp(a0, a1, a2, a3, a4, a5)
 expr_ty _Py_IfExp(expr_ty test, expr_ty body, expr_ty orelse, int lineno, int
                   col_offset, PyArena *arena);
-#define Dict(a0, a1, a2, a3, a4) _Py_Dict(a0, a1, a2, a3, a4)
-expr_ty _Py_Dict(asdl_seq * keys, asdl_seq * values, int lineno, int
-                 col_offset, PyArena *arena);
 #define Set(a0, a1, a2, a3) _Py_Set(a0, a1, a2, a3)
 expr_ty _Py_Set(asdl_seq * elts, int lineno, int col_offset, PyArena *arena);
 #define ListComp(a0, a1, a2, a3, a4) _Py_ListComp(a0, a1, a2, a3, a4)
@@ -568,6 +566,9 @@ expr_ty _Py_List(asdl_seq * elts, expr_context_ty ctx, int lineno, int
 #define Tuple(a0, a1, a2, a3, a4) _Py_Tuple(a0, a1, a2, a3, a4)
 expr_ty _Py_Tuple(asdl_seq * elts, expr_context_ty ctx, int lineno, int
                   col_offset, PyArena *arena);
+#define Dict(a0, a1, a2, a3, a4, a5) _Py_Dict(a0, a1, a2, a3, a4, a5)
+expr_ty _Py_Dict(asdl_seq * keys, asdl_seq * values, expr_context_ty ctx, int
+                 lineno, int col_offset, PyArena *arena);
 #define Slice(a0, a1, a2, a3) _Py_Slice(a0, a1, a2, a3)
 slice_ty _Py_Slice(expr_ty lower, expr_ty upper, expr_ty step, PyArena *arena);
 #define ExtSlice(a0, a1) _Py_ExtSlice(a0, a1)

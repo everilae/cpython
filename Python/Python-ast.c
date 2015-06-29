@@ -213,12 +213,6 @@ static char *IfExp_fields[]={
     "body",
     "orelse",
 };
-static PyTypeObject *Dict_type;
-_Py_IDENTIFIER(keys);
-static char *Dict_fields[]={
-    "keys",
-    "values",
-};
 static PyTypeObject *Set_type;
 _Py_IDENTIFIER(elts);
 static char *Set_fields[]={
@@ -328,6 +322,13 @@ static char *List_fields[]={
 static PyTypeObject *Tuple_type;
 static char *Tuple_fields[]={
     "elts",
+    "ctx",
+};
+static PyTypeObject *Dict_type;
+_Py_IDENTIFIER(keys);
+static char *Dict_fields[]={
+    "keys",
+    "values",
     "ctx",
 };
 static PyTypeObject *expr_context_type;
@@ -890,8 +891,6 @@ static int init_types(void)
     if (!Lambda_type) return 0;
     IfExp_type = make_type("IfExp", expr_type, IfExp_fields, 3);
     if (!IfExp_type) return 0;
-    Dict_type = make_type("Dict", expr_type, Dict_fields, 2);
-    if (!Dict_type) return 0;
     Set_type = make_type("Set", expr_type, Set_fields, 1);
     if (!Set_type) return 0;
     ListComp_type = make_type("ListComp", expr_type, ListComp_fields, 2);
@@ -936,6 +935,8 @@ static int init_types(void)
     if (!List_type) return 0;
     Tuple_type = make_type("Tuple", expr_type, Tuple_fields, 2);
     if (!Tuple_type) return 0;
+    Dict_type = make_type("Dict", expr_type, Dict_fields, 3);
+    if (!Dict_type) return 0;
     expr_context_type = make_type("expr_context", &AST_type, NULL, 0);
     if (!expr_context_type) return 0;
     if (!add_attributes(expr_context_type, NULL, 0)) return 0;
@@ -1809,22 +1810,6 @@ IfExp(expr_ty test, expr_ty body, expr_ty orelse, int lineno, int col_offset,
 }
 
 expr_ty
-Dict(asdl_seq * keys, asdl_seq * values, int lineno, int col_offset, PyArena
-     *arena)
-{
-    expr_ty p;
-    p = (expr_ty)PyArena_Malloc(arena, sizeof(*p));
-    if (!p)
-        return NULL;
-    p->kind = Dict_kind;
-    p->v.Dict.keys = keys;
-    p->v.Dict.values = values;
-    p->lineno = lineno;
-    p->col_offset = col_offset;
-    return p;
-}
-
-expr_ty
 Set(asdl_seq * elts, int lineno, int col_offset, PyArena *arena)
 {
     expr_ty p;
@@ -2266,6 +2251,28 @@ Tuple(asdl_seq * elts, expr_context_ty ctx, int lineno, int col_offset, PyArena
     p->kind = Tuple_kind;
     p->v.Tuple.elts = elts;
     p->v.Tuple.ctx = ctx;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    return p;
+}
+
+expr_ty
+Dict(asdl_seq * keys, asdl_seq * values, expr_context_ty ctx, int lineno, int
+     col_offset, PyArena *arena)
+{
+    expr_ty p;
+    if (!ctx) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field ctx is required for Dict");
+        return NULL;
+    }
+    p = (expr_ty)PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Dict_kind;
+    p->v.Dict.keys = keys;
+    p->v.Dict.values = values;
+    p->v.Dict.ctx = ctx;
     p->lineno = lineno;
     p->col_offset = col_offset;
     return p;
@@ -2987,20 +2994,6 @@ ast2obj_expr(void* _o)
             goto failed;
         Py_DECREF(value);
         break;
-    case Dict_kind:
-        result = PyType_GenericNew(Dict_type, NULL, NULL);
-        if (!result) goto failed;
-        value = ast2obj_list(o->v.Dict.keys, ast2obj_expr);
-        if (!value) goto failed;
-        if (_PyObject_SetAttrId(result, &PyId_keys, value) == -1)
-            goto failed;
-        Py_DECREF(value);
-        value = ast2obj_list(o->v.Dict.values, ast2obj_expr);
-        if (!value) goto failed;
-        if (_PyObject_SetAttrId(result, &PyId_values, value) == -1)
-            goto failed;
-        Py_DECREF(value);
-        break;
     case Set_kind:
         result = PyType_GenericNew(Set_type, NULL, NULL);
         if (!result) goto failed;
@@ -3272,6 +3265,25 @@ ast2obj_expr(void* _o)
             goto failed;
         Py_DECREF(value);
         value = ast2obj_expr_context(o->v.Tuple.ctx);
+        if (!value) goto failed;
+        if (_PyObject_SetAttrId(result, &PyId_ctx, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Dict_kind:
+        result = PyType_GenericNew(Dict_type, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_list(o->v.Dict.keys, ast2obj_expr);
+        if (!value) goto failed;
+        if (_PyObject_SetAttrId(result, &PyId_keys, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(o->v.Dict.values, ast2obj_expr);
+        if (!value) goto failed;
+        if (_PyObject_SetAttrId(result, &PyId_values, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_expr_context(o->v.Dict.ctx);
         if (!value) goto failed;
         if (_PyObject_SetAttrId(result, &PyId_ctx, value) == -1)
             goto failed;
@@ -5474,66 +5486,6 @@ obj2ast_expr(PyObject* obj, expr_ty* out, PyArena* arena)
         if (*out == NULL) goto failed;
         return 0;
     }
-    isinstance = PyObject_IsInstance(obj, (PyObject*)Dict_type);
-    if (isinstance == -1) {
-        return 1;
-    }
-    if (isinstance) {
-        asdl_seq* keys;
-        asdl_seq* values;
-
-        if (_PyObject_HasAttrId(obj, &PyId_keys)) {
-            int res;
-            Py_ssize_t len;
-            Py_ssize_t i;
-            tmp = _PyObject_GetAttrId(obj, &PyId_keys);
-            if (tmp == NULL) goto failed;
-            if (!PyList_Check(tmp)) {
-                PyErr_Format(PyExc_TypeError, "Dict field \"keys\" must be a list, not a %.200s", tmp->ob_type->tp_name);
-                goto failed;
-            }
-            len = PyList_GET_SIZE(tmp);
-            keys = _Py_asdl_seq_new(len, arena);
-            if (keys == NULL) goto failed;
-            for (i = 0; i < len; i++) {
-                expr_ty value;
-                res = obj2ast_expr(PyList_GET_ITEM(tmp, i), &value, arena);
-                if (res != 0) goto failed;
-                asdl_seq_SET(keys, i, value);
-            }
-            Py_CLEAR(tmp);
-        } else {
-            PyErr_SetString(PyExc_TypeError, "required field \"keys\" missing from Dict");
-            return 1;
-        }
-        if (_PyObject_HasAttrId(obj, &PyId_values)) {
-            int res;
-            Py_ssize_t len;
-            Py_ssize_t i;
-            tmp = _PyObject_GetAttrId(obj, &PyId_values);
-            if (tmp == NULL) goto failed;
-            if (!PyList_Check(tmp)) {
-                PyErr_Format(PyExc_TypeError, "Dict field \"values\" must be a list, not a %.200s", tmp->ob_type->tp_name);
-                goto failed;
-            }
-            len = PyList_GET_SIZE(tmp);
-            values = _Py_asdl_seq_new(len, arena);
-            if (values == NULL) goto failed;
-            for (i = 0; i < len; i++) {
-                expr_ty value;
-                res = obj2ast_expr(PyList_GET_ITEM(tmp, i), &value, arena);
-                if (res != 0) goto failed;
-                asdl_seq_SET(values, i, value);
-            }
-            Py_CLEAR(tmp);
-        } else {
-            PyErr_SetString(PyExc_TypeError, "required field \"values\" missing from Dict");
-            return 1;
-        }
-        *out = Dict(keys, values, lineno, col_offset, arena);
-        if (*out == NULL) goto failed;
-        return 0;
-    }
     isinstance = PyObject_IsInstance(obj, (PyObject*)Set_type);
     if (isinstance == -1) {
         return 1;
@@ -6327,6 +6279,78 @@ obj2ast_expr(PyObject* obj, expr_ty* out, PyArena* arena)
             return 1;
         }
         *out = Tuple(elts, ctx, lineno, col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    isinstance = PyObject_IsInstance(obj, (PyObject*)Dict_type);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        asdl_seq* keys;
+        asdl_seq* values;
+        expr_context_ty ctx;
+
+        if (_PyObject_HasAttrId(obj, &PyId_keys)) {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            tmp = _PyObject_GetAttrId(obj, &PyId_keys);
+            if (tmp == NULL) goto failed;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Dict field \"keys\" must be a list, not a %.200s", tmp->ob_type->tp_name);
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            keys = _Py_asdl_seq_new(len, arena);
+            if (keys == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                expr_ty value;
+                res = obj2ast_expr(PyList_GET_ITEM(tmp, i), &value, arena);
+                if (res != 0) goto failed;
+                asdl_seq_SET(keys, i, value);
+            }
+            Py_CLEAR(tmp);
+        } else {
+            PyErr_SetString(PyExc_TypeError, "required field \"keys\" missing from Dict");
+            return 1;
+        }
+        if (_PyObject_HasAttrId(obj, &PyId_values)) {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            tmp = _PyObject_GetAttrId(obj, &PyId_values);
+            if (tmp == NULL) goto failed;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Dict field \"values\" must be a list, not a %.200s", tmp->ob_type->tp_name);
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            values = _Py_asdl_seq_new(len, arena);
+            if (values == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                expr_ty value;
+                res = obj2ast_expr(PyList_GET_ITEM(tmp, i), &value, arena);
+                if (res != 0) goto failed;
+                asdl_seq_SET(values, i, value);
+            }
+            Py_CLEAR(tmp);
+        } else {
+            PyErr_SetString(PyExc_TypeError, "required field \"values\" missing from Dict");
+            return 1;
+        }
+        if (_PyObject_HasAttrId(obj, &PyId_ctx)) {
+            int res;
+            tmp = _PyObject_GetAttrId(obj, &PyId_ctx);
+            if (tmp == NULL) goto failed;
+            res = obj2ast_expr_context(tmp, &ctx, arena);
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        } else {
+            PyErr_SetString(PyExc_TypeError, "required field \"ctx\" missing from Dict");
+            return 1;
+        }
+        *out = Dict(keys, values, ctx, lineno, col_offset, arena);
         if (*out == NULL) goto failed;
         return 0;
     }
@@ -7298,7 +7322,6 @@ PyInit__ast(void)
         NULL;
     if (PyDict_SetItemString(d, "IfExp", (PyObject*)IfExp_type) < 0) return
         NULL;
-    if (PyDict_SetItemString(d, "Dict", (PyObject*)Dict_type) < 0) return NULL;
     if (PyDict_SetItemString(d, "Set", (PyObject*)Set_type) < 0) return NULL;
     if (PyDict_SetItemString(d, "ListComp", (PyObject*)ListComp_type) < 0)
         return NULL;
@@ -7335,6 +7358,7 @@ PyInit__ast(void)
     if (PyDict_SetItemString(d, "List", (PyObject*)List_type) < 0) return NULL;
     if (PyDict_SetItemString(d, "Tuple", (PyObject*)Tuple_type) < 0) return
         NULL;
+    if (PyDict_SetItemString(d, "Dict", (PyObject*)Dict_type) < 0) return NULL;
     if (PyDict_SetItemString(d, "expr_context", (PyObject*)expr_context_type) <
         0) return NULL;
     if (PyDict_SetItemString(d, "Load", (PyObject*)Load_type) < 0) return NULL;

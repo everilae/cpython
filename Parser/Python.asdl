@@ -55,7 +55,6 @@ module Python
          | UnaryOp(unaryop op, expr operand)
          | Lambda(arguments args, expr body)
          | IfExp(expr test, expr body, expr orelse)
-         | Dict(expr* keys, expr* values)
          | Set(expr* elts)
          | ListComp(expr elt, comprehension* generators)
          | SetComp(expr elt, comprehension* generators)
@@ -82,6 +81,7 @@ module Python
          | Name(identifier id, expr_context ctx)
          | List(expr* elts, expr_context ctx)
          | Tuple(expr* elts, expr_context ctx)
+         | Dict(expr* keys, expr* values, expr_context ctx)
 
           -- col_offset is the byte offset in the utf8 string the parser uses
           attributes (int lineno, int col_offset)

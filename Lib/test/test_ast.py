@@ -775,11 +775,11 @@ class ASTValidatorTests(unittest.TestCase):
             self.expr(ast.IfExp(*args), "must have Load context")
 
     def test_dict(self):
-        d = ast.Dict([], [ast.Name("x", ast.Load())])
+        d = ast.Dict([], [ast.Name("x", ast.Load())], ast.Load())
         self.expr(d, "same number of keys as values")
-        d = ast.Dict([None], [ast.Name("x", ast.Load())])
+        d = ast.Dict([None], [ast.Name("x", ast.Load())], ast.Load())
         self.expr(d, "None disallowed")
-        d = ast.Dict([ast.Name("x", ast.Load())], [None])
+        d = ast.Dict([ast.Name("x", ast.Load())], [None], ast.Load())
         self.expr(d, "None disallowed")
 
     def test_set(self):
@@ -948,7 +948,7 @@ exec_results = [
 ('Module', [('FunctionDef', (1, 0), 'f', ('arguments', [('arg', (1, 6), 'a', None)], None, [], [], None, [('Num', (1, 8), 0)]), [('Pass', (1, 12))], [], None)]),
 ('Module', [('FunctionDef', (1, 0), 'f', ('arguments', [], ('arg', (1, 7), 'args', None), [], [], None, []), [('Pass', (1, 14))], [], None)]),
 ('Module', [('FunctionDef', (1, 0), 'f', ('arguments', [], None, [], [], ('arg', (1, 8), 'kwargs', None), []), [('Pass', (1, 17))], [], None)]),
-('Module', [('FunctionDef', (1, 0), 'f', ('arguments', [('arg', (1, 6), 'a', None), ('arg', (1, 9), 'b', None), ('arg', (1, 14), 'c', None), ('arg', (1, 22), 'd', None), ('arg', (1, 28), 'e', None)], ('arg', (1, 35), 'args', None), [('arg', (1, 41), 'f', None)], [('Num', (1, 43), 42)], ('arg', (1, 49), 'kwargs', None), [('Num', (1, 11), 1), ('NameConstant', (1, 16), None), ('List', (1, 24), [], ('Load',)), ('Dict', (1, 30), [], [])]), [('Pass', (1, 58))], [], None)]),
+('Module', [('FunctionDef', (1, 0), 'f', ('arguments', [('arg', (1, 6), 'a', None), ('arg', (1, 9), 'b', None), ('arg', (1, 14), 'c', None), ('arg', (1, 22), 'd', None), ('arg', (1, 28), 'e', None)], ('arg', (1, 35), 'args', None), [('arg', (1, 41), 'f', None)], [('Num', (1, 43), 42)], ('arg', (1, 49), 'kwargs', None), [('Num', (1, 11), 1), ('NameConstant', (1, 16), None), ('List', (1, 24), [], ('Load',)), ('Dict', (1, 30), [], [], ('Load',))]), [('Pass', (1, 58))], [], None)]),
 ('Module', [('ClassDef', (1, 0), 'C', [], [], [('Pass', (1, 8))], [])]),
 ('Module', [('ClassDef', (1, 0), 'C', [('Name', (1, 8), 'object', ('Load',))], [], [('Pass', (1, 17))], [])]),
 ('Module', [('FunctionDef', (1, 0), 'f', ('arguments', [], None, [], [], None, []), [('Return', (1, 8), ('Num', (1, 15), 1))], [], None)]),
@@ -993,10 +993,10 @@ eval_results = [
 ('Expression', ('BinOp', (1, 0), ('Name', (1, 0), 'a', ('Load',)), ('Add',), ('Name', (1, 4), 'b', ('Load',)))),
 ('Expression', ('UnaryOp', (1, 0), ('Not',), ('Name', (1, 4), 'v', ('Load',)))),
 ('Expression', ('Lambda', (1, 0), ('arguments', [], None, [], [], None, []), ('NameConstant', (1, 7), None))),
-('Expression', ('Dict', (1, 2), [('Num', (1, 2), 1)], [('Num', (1, 4), 2)])),
-('Expression', ('Dict', (1, 0), [], [])),
+('Expression', ('Dict', (1, 2), [('Num', (1, 2), 1)], [('Num', (1, 4), 2)], ('Load',))),
+('Expression', ('Dict', (1, 0), [], [], ('Load',))),
 ('Expression', ('Set', (1, 1), [('NameConstant', (1, 1), None)])),
-('Expression', ('Dict', (2, 6), [('Num', (2, 6), 1)], [('Num', (4, 10), 2)])),
+('Expression', ('Dict', (2, 6), [('Num', (2, 6), 1)], [('Num', (4, 10), 2)], ('Load',))),
 ('Expression', ('ListComp', (1, 1), ('Name', (1, 1), 'a', ('Load',)), [('comprehension', ('Name', (1, 7), 'b', ('Store',)), ('Name', (1, 12), 'c', ('Load',)), [('Name', (1, 17), 'd', ('Load',))])])),
 ('Expression', ('GeneratorExp', (1, 1), ('Name', (1, 1), 'a', ('Load',)), [('comprehension', ('Name', (1, 7), 'b', ('Store',)), ('Name', (1, 12), 'c', ('Load',)), [('Name', (1, 17), 'd', ('Load',))])])),
 ('Expression', ('Compare', (1, 0), ('Num', (1, 0), 1), [('Lt',), ('Lt',)], [('Num', (1, 4), 2), ('Num', (1, 8), 3)])),

@@ -3076,6 +3076,34 @@ assignment_helper(struct compiler *c, asdl_seq *elts)
 }
 
 static int
+map_assignment_helper(struct compiler *c, asdl_seq *keys, asdl_seq *values)
+{
+    Py_ssize_t n = asdl_seq_LEN(keys);
+    Py_ssize_t i;
+    int seen_starstar = 0;
+    for (i = 0; i < n; i++) {
+        expr_ty key = asdl_seq_GET(keys, i);
+        expr_ty val = asdl_seq_GET(values, i);
+        if (!key && !seen_starstar) {
+            seen_starstar = 1;
+            return compiler_error(c,
+                "starred expressions not supported");
+        }
+        else if (!key) {
+            return compiler_error(c,
+                "two starred expressions in assignment");
+        }
+        else {
+	    ADDOP(c, DUP_TOP);
+            VISIT(c, expr, key);
+	    ADDOP(c, BINARY_SUBSCR);
+            VISIT(c, expr, val);
+        }
+    }
+    return 1;
+}
+
+static int
 compiler_list(struct compiler *c, expr_ty e)
 {
     asdl_seq *elts = e->v.List.elts;
@@ -3119,6 +3147,9 @@ compiler_dict(struct compiler *c, expr_ty e)
 {
     Py_ssize_t i, n, containers, elements;
     int is_unpacking = 0;
+    if (e->v.Dict.ctx == Store) {
+        return map_assignment_helper(c, e->v.Dict.keys, e->v.Dict.values);
+    }
     n = asdl_seq_LEN(e->v.Dict.values);
     containers = 0;
     elements = 0;
