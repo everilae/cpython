@@ -8,12 +8,14 @@ Unpack dict
 
 Partially unpack dict
 
+    >>> del a
     >>> {'a': a} = dict(a=1, b=2, c=3)
     >>> a == 1
     True
 
 Unpack complex keys
 
+    >>> del a
     >>> {(1, 2): a} = {(1, 2): 3}
     >>> a == 3
     True
@@ -27,6 +29,9 @@ Unpacking missing keys
 
 Unpacking is atomic
 
+    >>> del a
+    >>> del b
+    >>> del c
     >>> {'a': a, 'b': b, 'c': c, 'd': d} = dict(a=1, b=2, c=3)
     Traceback (most recent call last):
       ...

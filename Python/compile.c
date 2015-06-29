@@ -958,6 +958,8 @@ PyCompile_OpcodeStackEffect(int opcode, int oparg)
             return oparg-1;
         case UNPACK_EX:
             return (oparg&0xFF) + (oparg>>8);
+        case UNPACK_MAP:
+            return -1;
         case FOR_ITER:
             return 1; /* or -1, at end of iterator */
 

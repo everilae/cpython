@@ -2245,13 +2245,28 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
         }
 
         TARGET(UNPACK_MAP) {
-            PyObject *map, *keys[oparg];
+            int n = oparg, err = 0;
+            PyObject *map, *keys[n];
             while (oparg--) {
                 keys[oparg] = POP();
-                Py_DECREF(keys[oparg]);
             }
             map = POP();
+            while (n--) {
+                PyObject *item;
+                if (err == 0) {
+                    item = PyObject_GetItem(map, keys[n]);
+                    if (item == NULL)
+                        err = 1;
+                    PUSH(item);
+                }
+                else {
+                    PUSH(NULL);
+                }
+                Py_DECREF(keys[n]);
+            }
             Py_DECREF(map);
+            if (err != 0)
+                goto error;
             DISPATCH();
         }
 
