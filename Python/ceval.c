@@ -2244,6 +2244,17 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             DISPATCH();
         }
 
+        TARGET(UNPACK_MAP) {
+            PyObject *map, *keys[oparg];
+            while (oparg--) {
+                keys[oparg] = POP();
+                Py_DECREF(keys[oparg]);
+            }
+            map = POP();
+            Py_DECREF(map);
+            DISPATCH();
+        }
+
         TARGET(STORE_ATTR) {
             PyObject *name = GETITEM(names, oparg);
             PyObject *owner = TOP();

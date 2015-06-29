@@ -12,6 +12,12 @@ Partially unpack dict
     >>> a == 1
     True
 
+Unpack complex keys
+
+    >>> {(1, 2): a} = {(1, 2): 3}
+    >>> a == 3
+    True
+
 Unpacking missing keys
 
     >>> {'d': d} = dict(a=1, b=2, c=3)

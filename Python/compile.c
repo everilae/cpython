@@ -3083,7 +3083,6 @@ map_assignment_helper(struct compiler *c, asdl_seq *keys, asdl_seq *values)
     int seen_starstar = 0;
     for (i = 0; i < n; i++) {
         expr_ty key = asdl_seq_GET(keys, i);
-        expr_ty val = asdl_seq_GET(values, i);
         if (!key && !seen_starstar) {
             seen_starstar = 1;
             return compiler_error(c,
@@ -3093,13 +3092,10 @@ map_assignment_helper(struct compiler *c, asdl_seq *keys, asdl_seq *values)
             return compiler_error(c,
                 "two starred expressions in assignment");
         }
-        else {
-	    ADDOP(c, DUP_TOP);
-            VISIT(c, expr, key);
-	    ADDOP(c, BINARY_SUBSCR);
-            VISIT(c, expr, val);
-        }
     }
+    VISIT_SEQ(c, expr, keys);
+    ADDOP_I(c, UNPACK_MAP, n);
+    VISIT_SEQ(c, expr, values);
     return 1;
 }
 
