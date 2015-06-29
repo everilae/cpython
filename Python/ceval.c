@@ -2252,16 +2252,13 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             }
             map = POP();
             while (n--) {
-                PyObject *item;
+                PyObject *item = NULL;
                 if (err == 0) {
                     item = PyObject_GetItem(map, keys[n]);
                     if (item == NULL)
                         err = 1;
-                    PUSH(item);
                 }
-                else {
-                    PUSH(NULL);
-                }
+                PUSH(item);
                 Py_DECREF(keys[n]);
             }
             Py_DECREF(map);
